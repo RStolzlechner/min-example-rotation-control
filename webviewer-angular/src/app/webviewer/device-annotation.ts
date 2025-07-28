@@ -2,6 +2,18 @@ import {Core, WebViewerInstance} from "@pdftron/webviewer";
 
 
 export function createDeviceAnnotation(instance: WebViewerInstance) {
+  class CustomRectangleSelectionModel extends instance.Core.Annotations.BoxSelectionModel {
+    constructor(annotation: any, canModify: boolean, isSelected: boolean = false, documentViewer?: any) {
+      // @ts-ignore
+      super(annotation, canModify, isSelected, documentViewer);
+
+      const controlHandles = this.getControlHandles();
+
+      // @ts-ignore
+      controlHandles.push(new instance.Core.Annotations.RotationControlHandle(10, 10, 10, annotation, documentViewer));
+    }
+  }
+
   class DeviceAnnotation extends instance.Core.Annotations.CustomAnnotation {
     public static readonly DEVICE_ANNOTATION_MARKER = 'device-annotation-marker';
 
@@ -14,12 +26,24 @@ export function createDeviceAnnotation(instance: WebViewerInstance) {
 
       //I enabled this!
       this.RotationControlEnabled = true;
+
+      // @ts-ignore
+      this.selectionModel = CustomRectangleSelectionModel;
     }
 
     public override draw(ctx: CanvasRenderingContext2D, pageMatrix: unknown): void {
       // the setStyles function is a function on markup annotations that sets up
       // certain properties for us on the canvas for the annotation's stroke thickness.
       this.setStyles(ctx, pageMatrix);
+
+      //@ts-ignore
+      const { x, y, width, height } = this.getUnrotatedDimensions();
+
+      ctx.translate(x + width / 2, y + height / 2);
+
+      //@ts-ignore
+      ctx.rotate(-instance.Core.Annotations.RotationUtils.getRotationAngleInRadiansByDegrees(this['Rotation']));
+      ctx.translate(-x - width / 2, -y - height / 2);
 
       // first we need to translate to the annotation's x/y coordinates so that it's
       // drawn in the correct location
@@ -43,6 +67,9 @@ export function createDeviceAnnotation(instance: WebViewerInstance) {
       // Custom deserialization logic for device annotation can be added here
     }
   }
+
+  //@ts-ignore
+  Object.assign(DeviceAnnotation.prototype, instance.Core.Annotations.RotationUtils.RectangularCustomAnnotationRotationMixin);
 
   DeviceAnnotation.prototype.elementName = 'deviceAnnotation';
 
