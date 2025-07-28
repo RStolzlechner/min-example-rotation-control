@@ -55,6 +55,12 @@ export function createDeviceAnnotation(instance: WebViewerInstance) {
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
+
+      const marker = this.getCustomData(DeviceAnnotation.DEVICE_ANNOTATION_MARKER);
+      if (marker){
+        console.log('marker', marker);
+      }
+      console.log('draw');
     }
 
     public override serialize(element: Element, pageMatrix: unknown): Element {
@@ -68,8 +74,26 @@ export function createDeviceAnnotation(instance: WebViewerInstance) {
     }
   }
 
+
+
   //@ts-ignore
-  Object.assign(DeviceAnnotation.prototype, instance.Core.Annotations.RotationUtils.RectangularCustomAnnotationRotationMixin);
+  const mixin = instance.Core.Annotations.RotationUtils.RectangularCustomAnnotationRotationMixin;
+  const rotate = mixin.rotate;
+  const getUnrotatedDimensions = mixin.getUnrotatedDimensions;
+  const getRotatedAnnotationBoundingBoxRect = mixin.getRotatedAnnotationBoundingBoxRect;
+  const ownSerialize = DeviceAnnotation.prototype.serialize;
+  const ownDeserialize = DeviceAnnotation.prototype.deserialize;
+
+  Object.assign(DeviceAnnotation.prototype, {rotate, getRotatedAnnotationBoundingBoxRect, getUnrotatedDimensions});
+  DeviceAnnotation.prototype.serialize = function (element: Element, pageMatrix: unknown):Element {
+    const newElement = ownSerialize.call(this, element, pageMatrix);
+    return mixin.serialize.call(this, newElement, pageMatrix);
+  }
+  DeviceAnnotation.prototype.deserialize = function (element: Element, pageMatrix: unknown): Promise<void> {
+    return ownDeserialize.call(this, element, pageMatrix).then(() => {
+      return mixin.deserialize.call(this, element, pageMatrix);
+    });
+  }
 
   DeviceAnnotation.prototype.elementName = 'deviceAnnotation';
 
